@@ -15,6 +15,17 @@ function esc(str: string): string {
     .replace(/\^/g, "\\textasciicircum{}");
 }
 
+/**
+ * Escape bullet text but preserve \href{url}{label} commands.
+ */
+function escapeBullet(str: string): string {
+  if (!str) return "";
+  const parts = str.split(/(\\href\{[^\}]*\}\{[^\}]*\})/g);
+  return parts
+    .map((part, i) => (i % 2 === 1 ? part : esc(part)))
+    .join("");
+}
+
 /** Collapse multiple spaces to one, trim, then ensure ends with a full stop */
 function cleanBullet(raw: string): string {
   const s = raw.replace(/\s{2,}/g, " ").trim();
@@ -33,7 +44,7 @@ function bullets(lines: string[]): string {
   return lines
     .map(cleanBullet)
     .filter(Boolean)
-    .map(b => `\\cvbullet{${esc(b)}}`)
+    .map(b => `\\cvbullet{${escapeBullet(b)}}`)
     .join("\n");
 }
 
@@ -47,9 +58,6 @@ function linkedinHandle(val: string): string {
 export function generateLaTeX(data: CVData): string {
   const { personal, education, experience, projects, skills, sectionLabels } = data;
 
-  // \name always emitted — cls uses \@name unconditionally.
-  // All others use \ifdefined in the cls: only emit when non-empty,
-  // otherwise calling e.g. \phone{} defines \@phone as empty → \ifdefined fires → renders "| |".
   const handle = linkedinHandle(personal.linkedin);
   const header = [
     `\\name{${esc(personal.name)}}`,
@@ -59,9 +67,6 @@ export function generateLaTeX(data: CVData): string {
     personal.address.trim() && `\\address{${esc(personal.address)}}`,
   ].filter(Boolean).join("\n");
 
-  // \cvjob takes 4 mandatory args: {location}{name}{role line}{bullets}
-  // ALL args must be consecutive {}-groups with NO blank lines between —
-  // blank lines = \par = LaTeX terminates argument scanning → 422.
   const eduBlocks = education
     .filter(e => e.institution)
     .map((e: EducationEntry) => {
@@ -78,7 +83,6 @@ export function generateLaTeX(data: CVData): string {
       return `\\cvjob{${esc(e.location)}}{${esc(e.company)}}{${role}}{${body}}`;
     }).join("\n\n");
 
-  // \project takes 6 args: {period}{location}{title}{role}{bullets}{url}
   const projBlocks = projects
     .filter(p => p.title)
     .map((p: ProjectEntry) => {
@@ -86,7 +90,6 @@ export function generateLaTeX(data: CVData): string {
       return `\\project{${period(p.periodStart, p.periodEnd)}}{${esc(p.location)}}{${esc(p.title)}}{${esc(p.role)}}{${body}}{}`;
     }).join("\n\n");
 
-  // Only add a trailing period if the user hasn't already ended with punctuation
   const skillLines = skills
     .filter(s => s.label && s.items.length)
     .map((s: SkillGroup) => {
@@ -99,7 +102,6 @@ export function generateLaTeX(data: CVData): string {
     })
     .join("\n");
 
-  // Override section names with custom labels
   const customLabels = [
     `\\renewcommand{\\textEducation}{${esc(sectionLabels.education)}}`,
     `\\renewcommand{\\textExperience}{${esc(sectionLabels.experience)}}`,
@@ -108,21 +110,13 @@ export function generateLaTeX(data: CVData): string {
   ].join("\n");
 
   return `\\documentclass[caps]{sample}
-
 ${header}
-
 ${customLabels}
-
 \\begin{document}
-
-${eduBlocks  ? `\\education\n\n${eduBlocks}`  : ""}
-
-${expBlocks  ? `\\experience\n\n${expBlocks}` : ""}
-
-${projBlocks ? `\\projects\n\n${projBlocks}`  : ""}
-
-${skillLines ? `\\skills\n\n${skillLines}`    : ""}
-
+${eduBlocks ? `\\education\n\n${eduBlocks}` : ""}
+${expBlocks ? `\\experience\n\n${expBlocks}` : ""}
+${projBlocks ? `\\projects\n\n${projBlocks}` : ""}
+${skillLines ? `\\skills\n\n${skillLines}` : ""}
 \\end{document}
 `;
 }
