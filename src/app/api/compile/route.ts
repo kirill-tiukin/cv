@@ -22,7 +22,7 @@ const CLS_CONTENT = `\\NeedsTeXFormat{LaTeX2e}
 \\RequirePackage[T1]{fontenc}
 \\RequirePackage{newtxtext}
 
-\\RequirePackage[left=0.4in, right=0.6in, top=0in, bottom=0in]{geometry}
+\\RequirePackage[left=0.4in, right=0.6in, top=0in, bottom=-0.2in]{geometry}
 \\RequirePackage{titlesec}
 \\RequirePackage{enumitem}
 \\RequirePackage{hyperref}
